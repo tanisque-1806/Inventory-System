@@ -73,9 +73,9 @@ inventory-dbms/
 ### 1. Create virtual environment
 
 ```powershell
-cd C:\Users\98har\Desktop\inventory-dbms
-python -m venv .venv
-.venv\Scripts\activate
+cd C:\Users\your-path\inventory-dbm
+python -m venv inventory
+inventory\Scripts\activate
 pip install -r requirements.txt
 ```
 
