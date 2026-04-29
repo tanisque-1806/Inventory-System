@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>My Orders — ElectroInventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Online Store</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Shop</div>
+      <div class="nav-item" onclick="location.href='shop.html'"><span class="nav-icon">🏠</span> Browse Products</div>
+      <div class="nav-item" onclick="location.href='cart.html'"><span class="nav-icon">🛒</span> My Cart</div>
+      <div class="nav-item active"><span class="nav-icon">📦</span> My Orders</div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div><div class="user-name" id="sidebar-user-name">User</div><div class="user-role">USER</div></div>
+      <button class="btn-logout" onclick="logout()">⎋</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>My Orders</h3><p>Track your purchase history</p></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="location.href='shop.html'">🛒 Shop More</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div id="orders-list"><div class="loading-wrap"><div class="spinner"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Order detail modal -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-header"><h3 id="om-title">Order Details</h3><button class="modal-close" onclick="closeModal('order-modal')">✕</button></div>
+    <div class="modal-body" id="om-body"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('USER');
+initSidebar();
+
+const statusSteps = ['PENDING','CONFIRMED','SHIPPED','DELIVERED'];
+const catIcons = {
+  'Air Conditioner':'❄️','Refrigerator':'🧊','Washing Machine':'🫧','Television':'📺',
+  'Microwave Oven':'📡','Ceiling Fan':'🌀','Water Heater':'🔥','Vacuum Cleaner':'🌪️','Dishwasher':'🍽️','Air Purifier':'💨'
+};
+function getIcon(cat) { return catIcons[cat]||'⚡'; }
+
+async function loadOrders() {
+  const res = await api.get('/orders');
+  const orders = res?.data || [];
+  const el = document.getElementById('orders-list');
+  if (!orders.length) {
+    el.innerHTML = `<div class="card"><div class="card-body" style="text-align:center;padding:3rem">
+      <div style="font-size:3rem;margin-bottom:1rem">📦</div>
+      <div style="font-size:1.1rem;font-weight:600;margin-bottom:.5rem">No orders yet</div>
+      <p style="color:var(--text-muted);margin-bottom:1.25rem">Browse our catalog and place your first order!</p>
+      <a href="shop.html" class="btn btn-primary">Shop Now</a>
+    </div></div>`;
+    return;
+  }
+  el.innerHTML = orders.map(o => {
+    const step = statusSteps.indexOf(o.status);
+    const isCancelled = o.status === 'CANCELLED';
+    return `<div class="card" style="margin-bottom:1.25rem">
+      <div class="card-header">
+        <div>
+          <div style="font-weight:700">Order #${o.id}</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">${date(o.createdAt)} · ${o.orderItems?.length||0} item(s)</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <span style="font-size:1.1rem;font-weight:700;color:var(--primary)">${fmt(o.finalAmount)}</span>
+          ${statusBadge(o.status)}
+          <button class="btn btn-sm btn-secondary" onclick='showOrderDetail(${JSON.stringify(o)})'>Details</button>
+        </div>
+      </div>
+      ${!isCancelled ? `
+      <div class="card-body">
+        <div style="display:flex;justify-content:space-between;position:relative;margin-bottom:.5rem">
+          <div style="position:absolute;top:12px;left:5%;width:90%;height:3px;background:var(--border);z-index:0"></div>
+          <div style="position:absolute;top:12px;left:5%;width:${step>=0?Math.min((step/3)*90,90):0}%;height:3px;background:var(--primary);z-index:1;transition:width .4s"></div>
+          ${statusSteps.map((s,i)=>`
+            <div style="text-align:center;z-index:2">
+              <div style="width:24px;height:24px;border-radius:50%;background:${step>=i?'var(--primary)':'var(--border)'};
+                color:${step>=i?'#fff':'var(--text-muted)'};display:flex;align-items:center;justify-content:center;
+                font-size:.7rem;font-weight:700;margin:0 auto .35rem">${step>=i?'✓':i+1}</div>
+              <div style="font-size:.7rem;color:${step>=i?'var(--primary)':'var(--text-muted)'};font-weight:${step>=i?'600':'400'}">${s}</div>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function showOrderDetail(o) {
+  document.getElementById('om-title').textContent = 'Order #' + o.id;
+  document.getElementById('om-body').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem">
+      <div style="padding:.75rem;background:var(--bg);border-radius:8px">
+        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.25rem">STATUS</div>
+        <div>${statusBadge(o.status)}</div>
+      </div>
+      <div style="padding:.75rem;background:var(--bg);border-radius:8px">
+        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.25rem">ORDER DATE</div>
+        <div style="font-size:.875rem;font-weight:600">${date(o.createdAt)}</div>
+      </div>
+      <div style="padding:.75rem;background:var(--bg);border-radius:8px;grid-column:1/-1">
+        <div style="font-size:.72rem;color:var(--text-muted);margin-bottom:.25rem">SHIPPING ADDRESS</div>
+        <div style="font-size:.875rem">${o.shippingAddress||'—'}</div>
+      </div>
+    </div>
+    <h5 style="margin-bottom:.75rem">Items</h5>
+    ${(o.orderItems||[]).map(i=>`
+      <div style="display:flex;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--border)">
+        <div style="width:40px;height:40px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">${getIcon(i.product?.category?.name)}</div>
+        <div style="flex:1"><div style="font-weight:600;font-size:.875rem">${i.product?.name||'—'}</div>
+          <div style="font-size:.75rem;color:var(--text-muted)">Qty: ${i.quantity} × ${fmt(i.unitPrice)}</div></div>
+        <div style="font-weight:700;color:var(--primary)">${fmt(i.totalPrice)}</div>
+      </div>`).join('')}
+    <div style="display:flex;justify-content:space-between;padding-top:1rem;font-size:1.1rem;font-weight:700">
+      <span>Total</span><span style="color:var(--primary)">${fmt(o.finalAmount)}</span>
+    </div>`;
+  openModal('order-modal');
+}
+
+loadOrders();
+</script>
+</body>
+</html>

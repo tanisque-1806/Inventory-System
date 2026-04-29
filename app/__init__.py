@@ -1,0 +1,1 @@
+"""Inventory DBMS application package."""

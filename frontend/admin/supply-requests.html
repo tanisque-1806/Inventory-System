@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Supply Requests - ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" onclick="location.href='categories.html'"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" onclick="location.href='sellers.html'"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" onclick="location.href='users.html'"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item active"><span class="nav-icon">📤</span> Supply Requests</div>
+      <div class="nav-item" onclick="location.href='notifications.html'"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-badge"></span></div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Supply Requests</h3><p>Select an item first, then choose a seller who currently has it available</p></div>
+      <div class="topbar-right">
+        <select id="sr-filter" class="form-control" style="width:auto" onchange="filterRequests()">
+          <option value="">All</option><option>PENDING</option><option>APPROVED</option><option>REJECTED</option>
+        </select>
+      </div>
+    </div>
+    <div class="page-body">
+      <div style="max-width:760px;margin:0 auto 1.5rem">
+        <div class="card">
+          <div class="card-header"><h4>New Supplier Order</h4></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Item *</label>
+              <select id="sr-item" class="form-control" onchange="handleItemChange()">
+                <option value="">Select available item</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Seller With Availability *</label>
+              <select id="sr-seller" class="form-control" onchange="handleSellerChange()">
+                <option value="">Select seller</option>
+              </select>
+            </div>
+            <div id="seller-stock-box" style="display:none;margin-bottom:1rem;padding:.85rem 1rem;background:var(--bg);border:1px solid var(--border);border-radius:10px">
+              <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+                <div><strong>Available Stock:</strong> <span id="sr-available-stock">0</span></div>
+                <div><strong>Seller Price:</strong> <span id="sr-seller-price">Rs0</span></div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label class="form-label">Quantity *</label>
+                <input id="sr-qty" class="form-control" type="number" min="1" placeholder="50" oninput="calcTotal()"/>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Order Value</label>
+                <input id="sr-total" class="form-control" readonly placeholder="Calculated automatically"/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Admin Note</label>
+              <textarea id="sr-notes" class="form-control" rows="3" placeholder="Delivery timeline, packaging, payment terms..."></textarea>
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <button class="btn btn-primary" onclick="submitRequest()">Send Request</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h4>Requests Sent to Sellers</h4><span id="sr-count" style="font-size:.8rem;color:var(--text-muted)"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Item</th><th>Seller</th><th>Qty</th><th>Price/Unit</th><th>Total</th><th>Status</th><th>Admin Note</th><th>Seller Response</th><th>Date</th></tr></thead>
+            <tbody id="sr-tbody"><tr><td colspan="10" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+
+let allSR = [];
+let supplyOptions = [];
+let selectedOption = null;
+
+function makeItemKey(option) {
+  return [option.productName || '', option.brand || '', option.categoryName || ''].join('||');
+}
+
+function itemLabel(option) {
+  const parts = [option.productName];
+  if (option.brand) parts.push(option.brand);
+  if (option.categoryName) parts.push(option.categoryName);
+  return parts.filter(Boolean).join(' - ');
+}
+
+async function initPage() {
+  const [requestsRes, optionsRes] = await Promise.all([
+    api.get('/admin/supply-requests'),
+    api.get('/admin/products/supply-options')
+  ]);
+
+  allSR = requestsRes?.data || [];
+  supplyOptions = optionsRes?.data || [];
+  renderItemOptions();
+  filterRequests();
+}
+
+function renderItemOptions() {
+  const itemSel = document.getElementById('sr-item');
+  const seen = new Set();
+  itemSel.innerHTML = '<option value="">Select available item</option>';
+
+  supplyOptions.forEach(option => {
+    const key = makeItemKey(option);
+    if (seen.has(key)) return;
+    seen.add(key);
+    itemSel.innerHTML += `<option value="${key}">${itemLabel(option)}</option>`;
+  });
+}
+
+function handleItemChange() {
+  const selectedKey = document.getElementById('sr-item').value;
+  const sellerSel = document.getElementById('sr-seller');
+  sellerSel.innerHTML = '<option value="">Select seller</option>';
+  selectedOption = null;
+  document.getElementById('sr-qty').value = '';
+  document.getElementById('sr-total').value = '';
+  document.getElementById('seller-stock-box').style.display = 'none';
+
+  if (!selectedKey) return;
+
+  supplyOptions
+    .filter(option => makeItemKey(option) === selectedKey)
+    .forEach(option => {
+      sellerSel.innerHTML += `<option value="${option.sellerProductId}">${option.sellerName} (${option.availableStock} in stock)</option>`;
+    });
+}
+
+function handleSellerChange() {
+  const sellerProductId = parseInt(document.getElementById('sr-seller').value);
+  selectedOption = supplyOptions.find(option => option.sellerProductId === sellerProductId) || null;
+  document.getElementById('sr-qty').value = '';
+  calcTotal();
+
+  if (!selectedOption) {
+    document.getElementById('seller-stock-box').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('seller-stock-box').style.display = 'block';
+  document.getElementById('sr-available-stock').textContent = selectedOption.availableStock || 0;
+  document.getElementById('sr-seller-price').textContent = fmt(selectedOption.pricePerUnit || 0);
+}
+
+function calcTotal() {
+  const qty = parseInt(document.getElementById('sr-qty').value) || 0;
+  const price = selectedOption?.pricePerUnit || 0;
+  document.getElementById('sr-total').value = qty > 0 ? fmt(qty * price) : '';
+}
+
+async function submitRequest() {
+  if (!selectedOption) return toast('Select item and seller first', 'warning');
+
+  const quantity = parseInt(document.getElementById('sr-qty').value);
+  const notes = document.getElementById('sr-notes').value;
+
+  if (!quantity || quantity < 1) return toast('Enter valid quantity', 'warning');
+  if (quantity > (selectedOption.availableStock || 0)) return toast('Requested quantity exceeds available stock', 'warning');
+
+  const res = await api.post('/admin/supply-requests', {
+    sellerId: selectedOption.sellerId,
+    sellerProductId: selectedOption.sellerProductId,
+    productName: selectedOption.productName,
+    quantity,
+    pricePerUnit: selectedOption.pricePerUnit,
+    notes
+  });
+
+  if (res?.success) {
+    toast('Supply request sent to seller!', 'success');
+    document.getElementById('sr-item').value = '';
+    document.getElementById('sr-seller').innerHTML = '<option value="">Select seller</option>';
+    document.getElementById('sr-qty').value = '';
+    document.getElementById('sr-total').value = '';
+    document.getElementById('sr-notes').value = '';
+    document.getElementById('seller-stock-box').style.display = 'none';
+    selectedOption = null;
+    initPage();
+  } else toast(res?.message || 'Error', 'error');
+}
+
+function filterRequests() {
+  const f = document.getElementById('sr-filter').value;
+  const list = f ? allSR.filter(r => r.status === f) : allSR;
+  document.getElementById('sr-count').textContent = list.length + ' requests';
+  const tbody = document.getElementById('sr-tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="10" class="no-data">No requests found</td></tr>'; return; }
+  tbody.innerHTML = list.map(r => `<tr>
+    <td style="color:var(--text-muted)">#${r.id}</td>
+    <td>${r.productName||r.product?.name||'—'}</td>
+    <td><div style="font-weight:600">${r.seller?.companyName||r.seller?.user?.name||'—'}</div></td>
+    <td style="font-weight:700">${r.quantity}</td>
+    <td>${fmt(r.pricePerUnit)}</td>
+    <td style="font-weight:700;color:var(--primary)">${fmt((r.pricePerUnit||0)*(r.quantity||0))}</td>
+    <td>${statusBadge(r.status)}</td>
+    <td style="font-size:.82rem;color:var(--text-muted)">${r.notes||'—'}</td>
+    <td style="font-size:.82rem;color:var(--text-muted)">${r.adminRemarks||'Awaiting seller response'}</td>
+    <td style="font-size:.8rem;color:var(--text-muted)">${date(r.createdAt)}</td>
+  </tr>`).join('');
+}
+
+initPage();
+</script>
+</body>
+</html>

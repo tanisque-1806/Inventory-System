@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin Dashboard - ElectroInventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo-icon">E</div>
+      <div><h2>ElectroInventory</h2><small>Admin Panel</small></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active" data-href="dashboard.html" onclick="goto('dashboard.html')"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" data-href="analytics.html" onclick="goto('analytics.html')"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" data-href="products.html" onclick="goto('products.html')"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" data-href="categories.html" onclick="goto('categories.html')"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" data-href="sellers.html" onclick="goto('sellers.html')"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" data-href="users.html" onclick="goto('users.html')"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" data-href="orders.html" onclick="goto('orders.html')"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" data-href="supply-requests.html" onclick="goto('supply-requests.html')"><span class="nav-icon">🚚</span> Supply Requests</div>
+      <div class="nav-item" data-href="notifications.html" onclick="goto('notifications.html')">
+        <span class="nav-icon">🔔</span> Notifications
+        <span class="nav-badge" id="notif-badge"></span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="sidebar-avatar">A</div>
+        <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role" id="sidebar-role">ADMIN</div></div>
+        <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <h3>Dashboard</h3>
+        <p id="greeting">Good morning!</p>
+      </div>
+      <div class="topbar-right">
+        <button class="btn-notif" onclick="goto('notifications.html')" title="Notifications">
+           🔔<span class="notif-dot" id="notif-dot" style="display:none"></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="stats-grid" id="stats-grid">
+        <div class="loading-wrap"><div class="spinner"></div></div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1.25rem">
+        <div class="card">
+          <div class="card-header"><h4 id="monthly-revenue-title">Monthly Revenue</h4></div>
+          <div class="card-body"><div class="chart-container"><canvas id="revenueChart"></canvas></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h4>Top Selling Products</h4></div>
+          <div class="card-body"><div class="chart-container"><canvas id="topProductsChart"></canvas></div></div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h4>Low Stock Alerts</h4>
+            <a href="products.html" class="btn btn-sm btn-secondary">View All</a>
+          </div>
+          <div class="card-body" id="low-stock-list"><div class="loading-wrap"><div class="spinner"></div></div></div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <h4>Recent Orders</h4>
+            <a href="orders.html" class="btn btn-sm btn-secondary">View All</a>
+          </div>
+          <div class="table-wrap" id="recent-orders"><div class="loading-wrap"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+
+const yr = new Date().getFullYear();
+let revenueChart = null;
+let topProductsChart = null;
+
+document.getElementById('greeting').textContent = greet();
+document.getElementById('monthly-revenue-title').textContent = `Monthly Revenue (${yr})`;
+
+function greet() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function goto(page) { window.location.href = page; }
+
+async function loadDashboard() {
+  const res = await api.get('/admin/dashboard');
+  const s = res?.data || {};
+
+  document.getElementById('stats-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-icon blue">Rs</div>
+      <div><div class="stat-value">${fmt(s.totalRevenue)}</div><div class="stat-label">Total Revenue</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">M</div>
+      <div><div class="stat-value">${fmt(s.revenueThisMonth)}</div><div class="stat-label">This Month Revenue</div></div></div>
+    <div class="stat-card"><div class="stat-icon purple">O</div>
+      <div><div class="stat-value">${s.totalOrders || 0}</div><div class="stat-label">Total Orders</div></div></div>
+    <div class="stat-card"><div class="stat-icon amber">MO</div>
+      <div><div class="stat-value">${s.ordersThisMonth || 0}</div><div class="stat-label">Orders This Month</div></div></div>
+    <div class="stat-card"><div class="stat-icon cyan">P</div>
+      <div><div class="stat-value">${s.totalProducts || 0}</div><div class="stat-label">Products</div></div></div>
+    <div class="stat-card"><div class="stat-icon red">L</div>
+      <div><div class="stat-value">${s.lowStockCount || 0}</div><div class="stat-label">Low Stock Items</div></div></div>
+    <div class="stat-card"><div class="stat-icon amber">U</div>
+      <div><div class="stat-value">${s.totalUsers || 0}</div><div class="stat-label">Total Users</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">S</div>
+      <div><div class="stat-value">${s.totalSellers || 0}</div><div class="stat-label">Active Sellers</div></div></div>
+    <div class="stat-card"><div class="stat-icon blue">N</div>
+      <div><div class="stat-value">${s.unreadNotifications || 0}</div><div class="stat-label">Unread Notifications</div></div></div>
+  `;
+}
+
+async function loadCharts() {
+  const [monthly, topProds] = await Promise.all([
+    api.get('/admin/analytics/monthly/' + yr),
+    api.get('/admin/analytics/top-products')
+  ]);
+
+  const mData = monthly?.data || {};
+  const tData = topProds?.data || [];
+  const palette = ['#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#f97316','#14b8a6','#6366f1','#84cc16','#a78bfa'];
+
+  if (revenueChart) revenueChart.destroy();
+  revenueChart = new Chart(document.getElementById('revenueChart'), {
+    type: 'bar',
+    data: {
+      labels: mData.labels || [],
+      datasets: [{
+        label: 'Revenue (₹)',
+        data: mData.revenue || [],
+        backgroundColor: 'rgba(37,99,235,.15)', borderColor: '#2563eb', borderWidth: 2, borderRadius: 6,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#2563eb',
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#f1f5f9' },
+          ticks: { callback: v => 'Rs' + Number(v).toLocaleString('en-IN') }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  if (topProductsChart) topProductsChart.destroy();
+  topProductsChart = new Chart(document.getElementById('topProductsChart'), {
+    type: 'doughnut',
+    data: {
+      labels: tData.map(p => p.productName),
+      datasets: [{ data: tData.map(p => p.totalQuantitySold), backgroundColor: palette, borderWidth: 2 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { font: { size: 11 }, boxWidth: 12 } } }
+    }
+  });
+}
+
+async function loadLowStock() {
+  const res = await api.get('/admin/products/low-stock');
+  const items = res?.data || [];
+  const el = document.getElementById('low-stock-list');
+  if (!items.length) {
+    el.innerHTML = '<p class="no-data">All products are well stocked.</p>';
+    return;
+  }
+  el.innerHTML = items.slice(0, 6).map(p => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:600;font-size:.875rem">${p.name}</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">${p.category?.name || 'Uncategorized'}</div>
+      </div>
+      <div style="text-align:right">
+        <span class="badge badge-red">${p.stockQuantity} left</span>
+        <div style="font-size:.72rem;color:var(--text-muted);margin-top:.2rem">min: ${p.minStockThreshold}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function loadRecentOrders() {
+  const res = await api.get('/admin/orders');
+  const orders = (res?.data || []).slice(0, 5);
+  const el = document.getElementById('recent-orders');
+  if (!orders.length) {
+    el.innerHTML = '<p class="no-data">No orders yet</p>';
+    return;
+  }
+  el.innerHTML = `<table><thead><tr><th>#</th><th>Customer</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody>${orders.map(o => `<tr>
+      <td>#${o.id}</td>
+      <td>${o.user?.name || '-'}</td>
+      <td>${fmt(o.finalAmount)}</td>
+      <td>${statusBadge(o.status)}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+loadDashboard();
+loadCharts();
+loadLowStock();
+loadRecentOrders();
+</script>
+</body>
+</html>

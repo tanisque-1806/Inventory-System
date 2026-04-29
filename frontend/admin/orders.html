@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Orders — ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" onclick="location.href='categories.html'"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" onclick="location.href='sellers.html'"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" onclick="location.href='users.html'"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item active"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" onclick="location.href='supply-requests.html'"><span class="nav-icon">📥</span> Supply Requests</div>
+      <div class="nav-item" onclick="location.href='notifications.html'"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-badge"></span></div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Orders</h3><p>Manage customer orders</p></div>
+      <div class="topbar-right">
+        <select id="status-filter" class="form-control" style="width:auto" onchange="filterOrders()">
+          <option value="">All Statuses</option>
+          <option>PENDING</option><option>CONFIRMED</option>
+          <option>SHIPPED</option><option>DELIVERED</option><option>CANCELLED</option>
+        </select>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header"><h4>All Orders</h4><span id="order-count" style="font-size:.8rem;color:var(--text-muted)"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Order #</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+            <tbody id="orders-tbody"><tr><td colspan="7" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Order Detail Modal -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header"><h3 id="order-modal-title">Order Details</h3><button class="modal-close" onclick="closeModal('order-modal')">✕</button></div>
+    <div class="modal-body" id="order-modal-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('order-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+
+let allOrders = [];
+
+async function loadOrders() {
+  const res = await api.get('/admin/orders');
+  allOrders = res?.data || [];
+  filterOrders();
+}
+
+function filterOrders() {
+  const st = document.getElementById('status-filter').value;
+  const list = st ? allOrders.filter(o => o.status === st) : allOrders;
+  document.getElementById('order-count').textContent = list.length + ' orders';
+  const tbody = document.getElementById('orders-tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">No orders found</td></tr>'; return; }
+  tbody.innerHTML = list.map(o => `<tr>
+    <td style="font-weight:700">#${o.id}</td>
+    <td>${o.user?.name||'—'}<br><span style="font-size:.75rem;color:var(--text-muted)">${o.user?.email||''}</span></td>
+    <td>${o.orderItems?.length||0} item(s)</td>
+    <td style="font-weight:700;color:var(--primary)">${fmt(o.finalAmount)}</td>
+    <td>${statusBadge(o.status)}</td>
+    <td style="font-size:.8rem;color:var(--text-muted)">${date(o.createdAt)}</td>
+    <td style="display:flex;gap:.4rem;flex-wrap:wrap">
+      <button class="btn btn-sm btn-secondary" onclick='viewOrder(${JSON.stringify(o)})'>👁 View</button>
+      <select class="form-control" style="font-size:.75rem;padding:.3rem .5rem;height:auto" onchange="updateStatus(${o.id}, this.value)">
+        <option value="">Change…</option>
+        ${['PENDING','CONFIRMED','SHIPPED','DELIVERED','CANCELLED'].map(s=>`<option ${o.status===s?'selected':''} value="${s}">${s}</option>`).join('')}
+      </select>
+    </td>
+  </tr>`).join('');
+}
+
+function viewOrder(o) {
+  document.getElementById('order-modal-title').textContent = 'Order #' + o.id;
+  document.getElementById('order-modal-body').innerHTML = `
+    <div style="display:flex;justify-content:space-between;margin-bottom:1rem">
+      <div><strong>Customer:</strong> ${o.user?.name||'—'}<br><span style="font-size:.8rem;color:var(--text-muted)">${o.user?.email||''}</span></div>
+      <div style="text-align:right"><strong>Status:</strong> ${statusBadge(o.status)}<br><span style="font-size:.8rem;color:var(--text-muted)">${date(o.createdAt)}</span></div>
+    </div>
+    ${o.shippingAddress ? `<div style="margin-bottom:1rem"><strong>Shipping:</strong><br><span style="font-size:.85rem;color:var(--text-muted)">${o.shippingAddress}</span></div>` : ''}
+    <table style="width:100%;font-size:.85rem">
+      <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr></thead>
+      <tbody>${(o.orderItems||[]).map(i=>`<tr>
+        <td>${i.product?.name||'—'}</td>
+        <td>${i.quantity}</td>
+        <td>${fmt(i.unitPrice)}</td>
+        <td>${fmt(i.totalPrice)}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <div style="text-align:right;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <strong style="font-size:1.1rem">Total: ${fmt(o.finalAmount)}</strong>
+    </div>`;
+  openModal('order-modal');
+}
+
+async function updateStatus(id, status) {
+  if (!status) return;
+  const res = await api.put('/admin/orders/'+id+'/status', { status });
+  if (res?.success) { toast('Status updated to '+status,'success'); loadOrders(); }
+  else toast('Error','error');
+}
+
+loadOrders();
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Users — ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" onclick="location.href='categories.html'"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" onclick="location.href='sellers.html'"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item active"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" onclick="location.href='supply-requests.html'"><span class="nav-icon">📥</span> Supply Requests</div>
+      <div class="nav-item" onclick="location.href='notifications.html'"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-badge"></span></div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Users</h3><p>All registered accounts</p></div>
+      <div class="topbar-right">
+        <select id="role-filter" class="form-control" style="width:auto" onchange="filterUsers()">
+          <option value="">All Roles</option>
+          <option>ADMIN</option><option>SELLER</option><option>USER</option>
+        </select>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header"><h4>All Users</h4><span id="user-count" style="font-size:.8rem;color:var(--text-muted)"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Phone</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+            <tbody id="users-tbody"><tr><td colspan="7" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+let allUsers = [];
+
+async function loadUsers() {
+  const res = await api.get('/admin/users');
+  allUsers = res?.data || [];
+  filterUsers();
+}
+
+function filterUsers() {
+  const role = document.getElementById('role-filter').value;
+  const list = role ? allUsers.filter(u => u.role === role) : allUsers;
+  document.getElementById('user-count').textContent = list.length + ' users';
+  const tbody = document.getElementById('users-tbody');
+  const roleColors = { ADMIN:'badge-red', SELLER:'badge-purple', USER:'badge-blue' };
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">No users</td></tr>'; return; }
+  tbody.innerHTML = list.map(u => `<tr>
+    <td style="color:var(--text-muted)">#${u.id}</td>
+    <td>
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">${(u.name||'U')[0].toUpperCase()}</div>
+        <span style="font-weight:600">${u.name}</span>
+      </div>
+    </td>
+    <td>${u.email}</td>
+    <td>${u.phone||'—'}</td>
+    <td><span class="badge ${roleColors[u.role]||'badge-gray'}">${u.role}</span></td>
+    <td>${u.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}</td>
+    <td style="font-size:.8rem;color:var(--text-muted)">${date(u.createdAt)}</td>
+  </tr>`).join('');
+}
+
+loadUsers();
+</script>
+</body>
+</html>

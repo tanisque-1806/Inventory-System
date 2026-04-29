@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Notifications — ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" onclick="location.href='categories.html'"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" onclick="location.href='sellers.html'"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" onclick="location.href='users.html'"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" onclick="location.href='supply-requests.html'"><span class="nav-icon">📥</span> Supply Requests</div>
+      <div class="nav-item active"><span class="nav-icon">🔔</span> Notifications</div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Notifications</h3><p id="notif-summary">Loading…</p></div>
+      <div class="topbar-right">
+        <button class="btn btn-secondary" onclick="markAllRead()">✅ Mark All Read</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header">
+          <h4>All Notifications</h4>
+          <div style="display:flex;gap:.5rem">
+            <button class="btn btn-sm btn-secondary" onclick="filterType('')" id="btn-all">All</button>
+            <button class="btn btn-sm btn-secondary" onclick="filterType('LOW_STOCK')" id="btn-ls">⚠️ Low Stock</button>
+            <button class="btn btn-sm btn-secondary" onclick="filterType('ORDER')" id="btn-ord">📦 Orders</button>
+            <button class="btn btn-sm btn-secondary" onclick="filterType('SUPPLY')" id="btn-sup">📥 Supply</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="notif-list" id="notif-list"><div class="loading-wrap"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+
+let allNotifs = [];
+const typeIcons = { LOW_STOCK:'⚠️', ORDER:'📦', SUPPLY:'📥', SYSTEM:'🔔' };
+
+async function loadNotifications() {
+  const res = await api.get('/admin/notifications');
+  const d = res?.data || {};
+  allNotifs = d.notifications || [];
+  const unread = d.unreadCount || 0;
+  document.getElementById('notif-summary').textContent = `${allNotifs.length} total · ${unread} unread`;
+  renderNotifs(allNotifs);
+}
+
+function filterType(type) {
+  const list = type ? allNotifs.filter(n => n.type === type) : allNotifs;
+  renderNotifs(list);
+  ['all','ls','ord','sup'].forEach(k => document.getElementById('btn-'+k).className = 'btn btn-sm btn-secondary');
+  const map = {'':`btn-all`, LOW_STOCK:'btn-ls', ORDER:'btn-ord', SUPPLY:'btn-sup'};
+  if (map[type]) document.getElementById(map[type]).className = 'btn btn-sm btn-primary';
+}
+
+function renderNotifs(list) {
+  const el = document.getElementById('notif-list');
+  if (!list.length) { el.innerHTML = '<p class="no-data">No notifications</p>'; return; }
+  el.innerHTML = list.map(n => `
+    <div class="notif-item ${n.read?'':'unread'}">
+      <div class="notif-icon">${typeIcons[n.type]||'🔔'}</div>
+      <div style="flex:1">
+        <div class="notif-text">${n.message}</div>
+        <div class="notif-time">${date(n.createdAt)} · ${time(n.createdAt)} · <span class="badge ${n.read?'badge-gray':'badge-blue'}">${n.read?'Read':'New'}</span></div>
+      </div>
+    </div>`).join('');
+}
+
+async function markAllRead() {
+  const res = await api.put('/admin/notifications/mark-read');
+  if (res?.success) { toast('All marked as read','success'); loadNotifications(); }
+}
+
+loadNotifications();
+</script>
+</body>
+</html>

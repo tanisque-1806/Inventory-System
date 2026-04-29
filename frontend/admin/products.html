@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Products — ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item active"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" onclick="location.href='categories.html'"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" onclick="location.href='sellers.html'"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" onclick="location.href='users.html'"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" onclick="location.href='supply-requests.html'"><span class="nav-icon">📥</span> Supply Requests</div>
+      <div class="nav-item" onclick="location.href='notifications.html'"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-badge"></span></div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Products</h3><p>Manage all electrical appliances</p></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('product-modal')">＋ Add Product</button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="card" style="margin-bottom:1rem;background:linear-gradient(135deg,#eff6ff,#f8fafc);border:1px solid #bfdbfe">
+        <div class="card-body" style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+          <div>
+            <div style="font-weight:700;color:var(--primary);margin-bottom:.25rem">Stock Sync Active</div>
+            <div style="font-size:.88rem;color:var(--text-muted)">Approved seller requests automatically add received quantity into admin stock shown on this page.</div>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAll()">Refresh Stock</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="filter-row">
+            <div class="search-bar">
+              <span>🔍</span>
+              <input id="search-input" placeholder="Search products…" oninput="filterProducts()"/>
+            </div>
+            <select id="cat-filter" class="form-control" style="width:auto" onchange="filterProducts()">
+              <option value="">All Categories</option>
+            </select>
+            <select id="stock-filter" class="form-control" style="width:auto" onchange="filterProducts()">
+              <option value="">All Stock</option>
+              <option value="low">Low Stock</option>
+              <option value="ok">In Stock</option>
+            </select>
+          </div>
+          <span id="product-count" style="font-size:.8rem;color:var(--text-muted)"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Category</th><th>Brand</th><th>Price</th><th>Stock</th><th>Threshold</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="products-tbody"><tr><td colspan="9" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Product Modal -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Product</h3>
+      <button class="modal-close" onclick="closeModal('product-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="p-id"/>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Product Name *</label>
+          <input id="p-name" class="form-control" placeholder="e.g. Samsung 1.5T AC"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brand</label>
+          <input id="p-brand" class="form-control" placeholder="Samsung"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Model Number</label>
+          <input id="p-model" class="form-control" placeholder="AR18NV"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="p-cat" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Price (₹) *</label>
+          <input id="p-price" class="form-control" type="number" min="0" step="0.01" placeholder="35000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock Quantity *</label>
+          <input id="p-stock" class="form-control" type="number" min="0" placeholder="50"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Min Stock Threshold</label>
+          <input id="p-threshold" class="form-control" type="number" min="0" placeholder="10"/>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Description</label>
+          <textarea id="p-desc" class="form-control" rows="3" placeholder="Product description…"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('product-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+
+let allProducts = [], categories = [];
+
+async function loadAll() {
+  const [pr, cr] = await Promise.all([api.get('/admin/products'), api.get('/admin/categories')]);
+  allProducts = pr?.data || [];
+  categories  = cr?.data || [];
+
+  const catSel = document.getElementById('cat-filter');
+  const pCat   = document.getElementById('p-cat');
+  catSel.innerHTML = '<option value="">All Categories</option>';
+  pCat.innerHTML = '<option value="">Select category</option>';
+  categories.forEach(c => {
+    catSel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    pCat.innerHTML   += `<option value="${c.id}">${c.name}</option>`;
+  });
+  renderTable(allProducts);
+}
+
+function filterProducts() {
+  const q  = document.getElementById('search-input').value.toLowerCase();
+  const cat = document.getElementById('cat-filter').value;
+  const stk = document.getElementById('stock-filter').value;
+  let list = allProducts.filter(p => {
+    const matchQ   = !q  || p.name.toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q);
+    const matchCat = !cat || String(p.category?.id) === cat;
+    const matchStk = !stk || (stk==='low' ? p.stockQuantity<=p.minStockThreshold : p.stockQuantity>p.minStockThreshold);
+    return matchQ && matchCat && matchStk;
+  });
+  renderTable(list);
+}
+
+function renderTable(list) {
+  document.getElementById('product-count').textContent = list.length + ' products';
+  const tbody = document.getElementById('products-tbody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">No products found</td></tr>'; return; }
+  tbody.innerHTML = list.map(p => {
+    const isLow = p.stockQuantity <= p.minStockThreshold;
+    const stockHint = p.stockQuantity > 0 ? 'Received / available in admin inventory' : 'No stock received yet';
+    return `<tr>
+      <td style="color:var(--text-muted)">#${p.id}</td>
+      <td><div style="font-weight:600">${p.name}</div><div style="font-size:.75rem;color:var(--text-muted)">${p.description?.slice(0,40)||''}</div></td>
+      <td>${p.category?.name||'—'}</td>
+      <td>${p.brand||'—'}</td>
+      <td style="font-weight:700;color:var(--primary)">${fmt(p.price)}</td>
+      <td><span class="badge ${isLow?'badge-red':'badge-green'}">${p.stockQuantity}</span><div style="font-size:.72rem;color:var(--text-muted);margin-top:.25rem">${stockHint}</div></td>
+      <td style="color:var(--text-muted)">${p.minStockThreshold}</td>
+      <td>${p.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}</td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick='editProduct(${JSON.stringify(p)})'>✏️ Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})" style="margin-left:.3rem">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add Product';
+  document.getElementById('p-id').value = '';
+  ['p-name','p-brand','p-model','p-price','p-stock','p-desc'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('p-threshold').value = '10';
+  document.getElementById('p-cat').selectedIndex = 0;
+  openModal('product-modal');
+}
+
+function editProduct(p) {
+  document.getElementById('modal-title').textContent = 'Edit Product';
+  document.getElementById('p-id').value        = p.id;
+  document.getElementById('p-name').value      = p.name||'';
+  document.getElementById('p-brand').value     = p.brand||'';
+  document.getElementById('p-model').value     = p.modelNumber||'';
+  document.getElementById('p-price').value     = p.price||'';
+  document.getElementById('p-stock').value     = p.stockQuantity||0;
+  document.getElementById('p-threshold').value = p.minStockThreshold||10;
+  document.getElementById('p-desc').value      = p.description||'';
+  document.getElementById('p-cat').value       = p.category?.id||'';
+  openModal('product-modal');
+}
+
+async function saveProduct() {
+  const id = document.getElementById('p-id').value;
+  const body = {
+    name: document.getElementById('p-name').value,
+    brand: document.getElementById('p-brand').value,
+    modelNumber: document.getElementById('p-model').value,
+    price: parseFloat(document.getElementById('p-price').value),
+    stockQuantity: parseInt(document.getElementById('p-stock').value),
+    minStockThreshold: parseInt(document.getElementById('p-threshold').value)||10,
+    description: document.getElementById('p-desc').value,
+    categoryId: document.getElementById('p-cat').value || null
+  };
+  if (!body.name || !body.price) return toast('Name and price are required','warning');
+  const res = id ? await api.put('/admin/products/'+id, body) : await api.post('/admin/products', body);
+  if (res?.success) { toast('Saved!','success'); closeModal('product-modal'); loadAll(); }
+  else toast(res?.message||'Error','error');
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Delete this product?')) return;
+  const res = await api.delete('/admin/products/'+id);
+  if (res?.success) { toast('Deleted','success'); loadAll(); }
+  else toast('Error','error');
+}
+
+// Override openModal for add
+document.querySelector('.btn-primary[onclick*="product-modal"]').onclick = openAddModal;
+
+loadAll();
+</script>
+</body>
+</html>

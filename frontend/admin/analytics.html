@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Analytics — ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item active"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" onclick="location.href='categories.html'"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" onclick="location.href='sellers.html'"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" onclick="location.href='users.html'"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" onclick="location.href='supply-requests.html'"><span class="nav-icon">📥</span> Supply Requests</div>
+      <div class="nav-item" onclick="location.href='notifications.html'"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-badge"></span></div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Analytics</h3><p>Sales performance and insights</p></div>
+      <div class="topbar-right">
+        <select id="year-select" class="form-control" style="width:auto" onchange="loadCharts()"></select>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- KPI row -->
+      <div class="stats-grid" id="kpi-grid">
+        <div class="loading-wrap"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Revenue chart -->
+      <div class="card" style="margin-bottom:1.25rem">
+        <div class="card-header"><h4>📈 Monthly Revenue Trend</h4></div>
+        <div class="card-body"><div class="chart-container" style="height:320px"><canvas id="revenueChart"></canvas></div></div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Top products bar chart -->
+        <div class="card">
+          <div class="card-header"><h4>🏆 Top 10 Best Sellers (by units)</h4></div>
+          <div class="card-body"><div class="chart-container" style="height:340px"><canvas id="topBarChart"></canvas></div></div>
+        </div>
+
+        <!-- Doughnut -->
+        <div class="card">
+          <div class="card-header"><h4>🍩 Revenue Share by Product</h4></div>
+          <div class="card-body"><div class="chart-container" style="height:340px"><canvas id="donutChart"></canvas></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+
+const palette = ['#2563eb','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#f97316','#14b8a6','#6366f1'];
+let revenueChart, topBarChart, donutChart;
+const yr = new Date().getFullYear();
+
+// Populate year select
+const sel = document.getElementById('year-select');
+for (let y = yr; y >= yr - 4; y--) sel.innerHTML += `<option value="${y}">${y}</option>`;
+
+async function loadKPIs() {
+  const res = await api.get('/admin/dashboard');
+  const s = res?.data || {};
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="stat-card"><div class="stat-icon blue">💰</div><div><div class="stat-value">${fmt(s.totalRevenue)}</div><div class="stat-label">Total Revenue</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">📅</div><div><div class="stat-value">${fmt(s.revenueThisMonth)}</div><div class="stat-label">This Month</div></div></div>
+    <div class="stat-card"><div class="stat-icon purple">🛒</div><div><div class="stat-value">${s.totalOrders||0}</div><div class="stat-label">Total Orders</div></div></div>
+    <div class="stat-card"><div class="stat-icon amber">📦</div><div><div class="stat-value">${s.ordersThisMonth||0}</div><div class="stat-label">Orders This Month</div></div></div>
+  `;
+}
+
+async function loadCharts() {
+  const year = document.getElementById('year-select').value || yr;
+  const [monthly, topProds] = await Promise.all([
+    api.get('/admin/analytics/monthly/'+year),
+    api.get('/admin/analytics/top-products')
+  ]);
+
+  const mData = monthly?.data || {};
+  const tData = topProds?.data || [];
+
+  if (revenueChart) revenueChart.destroy();
+  revenueChart = new Chart(document.getElementById('revenueChart'), {
+    type: 'bar',
+    data: {
+      labels: mData.labels||[],
+      datasets: [{
+        label: 'Revenue (₹)', data: mData.revenue||[],
+        backgroundColor: 'rgba(37,99,235,.15)', borderColor: '#2563eb', borderWidth: 2, borderRadius: 6,
+      },{
+        label: 'Trend', data: mData.revenue||[], type:'line',
+        borderColor: '#10b981', tension:.4, fill:false, pointRadius:4
+      }]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'top' } },
+      scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'₹'+v.toLocaleString('en-IN') }, grid:{ color:'#f1f5f9' } },
+               x:{ grid:{ display:false } } }
+    }
+  });
+
+  if (topBarChart) topBarChart.destroy();
+  topBarChart = new Chart(document.getElementById('topBarChart'), {
+    type: 'bar',
+    data: {
+      labels: tData.map(p => p.productName?.slice(0,18)+'…'),
+      datasets: [{ label:'Units Sold', data: tData.map(p=>p.totalQuantitySold),
+        backgroundColor: palette, borderRadius: 6 }]
+    },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{ x:{ beginAtZero:true, grid:{ color:'#f1f5f9' } }, y:{ grid:{ display:false } } }
+    }
+  });
+
+  if (donutChart) donutChart.destroy();
+  donutChart = new Chart(document.getElementById('donutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: tData.map(p => p.productName),
+      datasets:[{ data: tData.map(p=>p.totalQuantitySold), backgroundColor:palette, borderWidth:2 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ font:{ size:11 }, boxWidth:12, padding:10 } } }
+    }
+  });
+}
+
+loadKPIs();
+loadCharts();
+</script>
+</body>
+</html>

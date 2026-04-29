@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1380" viewBox="0 0 1900 1380">
+  <defs>
+    <style>
+      .bg { fill: #f4f7fb; }
+      .entity { fill: #ffffff; stroke: #16324d; stroke-width: 2; rx: 18; ry: 18; }
+      .head-admin { fill: #dbeafe; }
+      .head-seller { fill: #dcfce7; }
+      .head-user { fill: #fef3c7; }
+      .head-system { fill: #fee2e2; }
+      .title { font: 700 18px 'Segoe UI', Arial, sans-serif; fill: #0f2237; }
+      .field { font: 13px 'Segoe UI', Arial, sans-serif; fill: #26445f; }
+      .caption { font: 700 28px 'Segoe UI', Arial, sans-serif; fill: #0f2237; }
+      .subcaption { font: 14px 'Segoe UI', Arial, sans-serif; fill: #5f7893; }
+      .legend { font: 13px 'Segoe UI', Arial, sans-serif; fill: #26445f; }
+      .line { stroke: #537190; stroke-width: 2.2; fill: none; }
+      .label { font: 12px 'Segoe UI', Arial, sans-serif; fill: #16324d; font-weight: 600; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto" markerUnits="strokeWidth">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#537190"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1900" height="1380"/>
+  <text class="caption" x="50" y="55">Inventory-DBMS ER Diagram</text>
+  <text class="subcaption" x="50" y="82">Standalone Python + DBMS logic for electric warehouse owner, suppliers, and small dealers</text>
+
+  <g transform="translate(50,120)">
+    <rect class="entity" x="0" y="0" width="260" height="210"/>
+    <rect class="head-admin" x="0" y="0" width="260" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">USERS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">name</text>
+    <text class="field" x="18" y="112">email</text>
+    <text class="field" x="18" y="134">password_hash</text>
+    <text class="field" x="18" y="156">phone</text>
+    <text class="field" x="18" y="178">role</text>
+    <text class="field" x="18" y="200">is_active, created_at</text>
+  </g>
+
+  <g transform="translate(370,120)">
+    <rect class="entity" x="0" y="0" width="260" height="185"/>
+    <rect class="head-seller" x="0" y="0" width="260" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">SELLERS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK user_id</text>
+    <text class="field" x="18" y="112">company_name</text>
+    <text class="field" x="18" y="134">phone, address</text>
+    <text class="field" x="18" y="156">gst_number</text>
+    <text class="field" x="18" y="178">is_active, created_at</text>
+  </g>
+
+  <g transform="translate(690,120)">
+    <rect class="entity" x="0" y="0" width="250" height="135"/>
+    <rect class="head-user" x="0" y="0" width="250" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">CATEGORIES</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">name</text>
+    <text class="field" x="18" y="112">description</text>
+  </g>
+
+  <g transform="translate(1000,120)">
+    <rect class="entity" x="0" y="0" width="285" height="235"/>
+    <rect class="head-admin" x="0" y="0" width="285" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">PRODUCTS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">name, description</text>
+    <text class="field" x="18" y="112">FK category_id</text>
+    <text class="field" x="18" y="134">brand, model_number</text>
+    <text class="field" x="18" y="156">price</text>
+    <text class="field" x="18" y="178">stock_quantity</text>
+    <text class="field" x="18" y="200">min_stock_threshold</text>
+    <text class="field" x="18" y="222">is_active, created_at, updated_at</text>
+  </g>
+
+  <g transform="translate(1335,120)">
+    <rect class="entity" x="0" y="0" width="300" height="235"/>
+    <rect class="head-seller" x="0" y="0" width="300" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">SELLER_PRODUCTS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK seller_id</text>
+    <text class="field" x="18" y="112">FK category_id</text>
+    <text class="field" x="18" y="134">name, description</text>
+    <text class="field" x="18" y="156">brand, model_number</text>
+    <text class="field" x="18" y="178">price, stock_quantity</text>
+    <text class="field" x="18" y="200">min_stock_threshold</text>
+    <text class="field" x="18" y="222">is_active, created_at, updated_at</text>
+  </g>
+
+  <g transform="translate(190,430)">
+    <rect class="entity" x="0" y="0" width="280" height="160"/>
+    <rect class="head-user" x="0" y="0" width="280" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">CART_ITEMS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK user_id</text>
+    <text class="field" x="18" y="112">FK product_id</text>
+    <text class="field" x="18" y="134">quantity, created_at</text>
+  </g>
+
+  <g transform="translate(540,430)">
+    <rect class="entity" x="0" y="0" width="280" height="185"/>
+    <rect class="head-user" x="0" y="0" width="280" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">ORDERS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK user_id</text>
+    <text class="field" x="18" y="112">total_amount</text>
+    <text class="field" x="18" y="134">status</text>
+    <text class="field" x="18" y="156">shipping_address, notes</text>
+    <text class="field" x="18" y="178">created_at, updated_at</text>
+  </g>
+
+  <g transform="translate(890,430)">
+    <rect class="entity" x="0" y="0" width="285" height="185"/>
+    <rect class="head-user" x="0" y="0" width="285" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">ORDER_ITEMS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK order_id</text>
+    <text class="field" x="18" y="112">FK product_id</text>
+    <text class="field" x="18" y="134">quantity</text>
+    <text class="field" x="18" y="156">unit_price, total_price</text>
+    <text class="field" x="18" y="178">created_at</text>
+  </g>
+
+  <g transform="translate(50,700)">
+    <rect class="entity" x="0" y="0" width="310" height="185"/>
+    <rect class="head-admin" x="0" y="0" width="310" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">ADMIN_PROCUREMENT_CARTS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK admin_user_id</text>
+    <text class="field" x="18" y="112">status</text>
+    <text class="field" x="18" y="134">notes</text>
+    <text class="field" x="18" y="156">created_at</text>
+    <text class="field" x="18" y="178">updated_at</text>
+  </g>
+
+  <g transform="translate(410,700)">
+    <rect class="entity" x="0" y="0" width="340" height="210"/>
+    <rect class="head-admin" x="0" y="0" width="340" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">ADMIN_PROCUREMENT_CART_ITEMS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK cart_id</text>
+    <text class="field" x="18" y="112">FK seller_product_id</text>
+    <text class="field" x="18" y="134">quantity</text>
+    <text class="field" x="18" y="156">price_per_unit</text>
+    <text class="field" x="18" y="178">total_value</text>
+    <text class="field" x="18" y="200">notes, created_at</text>
+  </g>
+
+  <g transform="translate(820,700)">
+    <rect class="entity" x="0" y="0" width="360" height="260"/>
+    <rect class="head-seller" x="0" y="0" width="360" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">SUPPLY_REQUESTS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK admin_cart_id</text>
+    <text class="field" x="18" y="112">FK seller_id</text>
+    <text class="field" x="18" y="134">FK seller_product_id</text>
+    <text class="field" x="18" y="156">FK admin_product_id</text>
+    <text class="field" x="18" y="178">quantity, price_per_unit</text>
+    <text class="field" x="18" y="200">total_value, status</text>
+    <text class="field" x="18" y="222">admin_notes, seller_remarks</text>
+    <text class="field" x="18" y="244">created_at, updated_at</text>
+  </g>
+
+  <g transform="translate(1250,700)">
+    <rect class="entity" x="0" y="0" width="330" height="235"/>
+    <rect class="head-system" x="0" y="0" width="330" height="42" rx="18" ry="18"/>
+    <text class="title" x="18" y="27">NOTIFICATIONS</text>
+    <text class="field" x="18" y="68">PK id</text>
+    <text class="field" x="18" y="90">FK user_id</text>
+    <text class="field" x="18" y="112">role_target, type</text>
+    <text class="field" x="18" y="134">title</text>
+    <text class="field" x="18" y="156">message</text>
+    <text class="field" x="18" y="178">related_table, related_id</text>
+    <text class="field" x="18" y="200">is_read</text>
+    <text class="field" x="18" y="222">created_at</text>
+  </g>
+
+  <path class="line" marker-end="url(#arrow)" d="M310 220 C340 220, 340 220, 370 220"/>
+  <text class="label" x="328" y="205">1 user = 0/1 seller profile</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M810 220 C910 220, 920 220, 1000 220"/>
+  <text class="label" x="842" y="204">1 category - many warehouse products</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M940 220 C1130 220, 1180 220, 1335 220"/>
+  <text class="label" x="1050" y="204">1 category - many supplier products</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M630 240 C980 300, 1160 300, 1335 240"/>
+  <text class="label" x="880" y="318">1 seller - many seller inventory items</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M180 330 C180 390, 250 390, 250 430"/>
+  <text class="label" x="72" y="385">user adds items</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1130 355 C1130 390, 410 390, 410 430"/>
+  <text class="label" x="780" y="378">warehouse item appears in dealer cart</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M470 510 C515 510, 515 510, 540 510"/>
+  <text class="label" x="472" y="495">cart creates order</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M820 520 C850 520, 860 520, 890 520"/>
+  <text class="label" x="826" y="505">order has many lines</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1175 520 C1225 520, 1210 270, 1285 270"/>
+  <text class="label" x="1210" y="430">order line references warehouse stock</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M180 330 C180 640, 160 640, 160 700"/>
+  <text class="label" x="56" y="640">admin user creates procurement cart</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M360 790 C385 790, 390 790, 410 790"/>
+  <text class="label" x="326" y="774">cart contains lines</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M750 805 C1060 640, 1370 420, 1485 355"/>
+  <text class="label" x="1010" y="620">admin selects supplier item</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M750 835 C780 835, 790 835, 820 835"/>
+  <text class="label" x="760" y="820">draft becomes request</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1180 820 C1240 820, 1270 260, 1465 260"/>
+  <text class="label" x="1275" y="590">request points to supplier stock</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1180 790 C1240 790, 1260 255, 1000 255"/>
+  <text class="label" x="1208" y="520">approved request updates warehouse stock</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1180 760 C1220 760, 1260 220, 630 220"/>
+  <text class="label" x="1030" y="150">supplier receives request</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M280 810 C760 1030, 1010 1010, 1250 850"/>
+  <text class="label" x="642" y="1060">procurement events notify admin or seller</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1175 560 C1280 620, 1320 700, 1320 700"/>
+  <text class="label" x="1225" y="620">orders notify admin</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1285 355 C1400 470, 1415 700, 1415 700"/>
+  <text class="label" x="1435" y="545">low stock trigger creates alerts</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M1635 240 C1710 350, 1710 700, 1530 700"/>
+  <text class="label" x="1718" y="502">supplier low stock also alerts admin</text>
+
+  <path class="line" marker-end="url(#arrow)" d="M310 260 C740 1140, 1260 1140, 1415 935"/>
+  <text class="label" x="752" y="1170">notifications can target a specific user</text>
+
+  <g transform="translate(50,1230)">
+    <rect x="0" y="0" width="1730" height="100" fill="#ffffff" stroke="#d6e1ec" stroke-width="1.5" rx="18" ry="18"/>
+    <text class="title" x="20" y="30">Core Logic Summary</text>
+    <text class="legend" x="20" y="55">1. USERS hold admin, seller, and dealer identities. SELLERS extends seller-role users.</text>
+    <text class="legend" x="20" y="75">2. PRODUCTS is warehouse stock. SELLER_PRODUCTS is supplier stock. They remain logically separate.</text>
+    <text class="legend" x="20" y="95">3. Dealers buy through CART_ITEMS and ORDERS. Admin restocks through ADMIN_PROCUREMENT_CARTS and SUPPLY_REQUESTS.</text>
+    <text class="legend" x="900" y="55">4. Approved supplier requests move stock from SELLER_PRODUCTS to PRODUCTS.</text>
+    <text class="legend" x="900" y="75">5. NOTIFICATIONS are generated for low stock, orders, and supply workflow events.</text>
+  </g>
+</svg>

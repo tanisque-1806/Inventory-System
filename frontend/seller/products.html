@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>My Inventory - Seller Portal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Seller Portal</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='supply.html'"><span class="nav-icon">📥</span> Admin Requests</div>
+      <div class="nav-item active"><span class="nav-icon">📦</span> My Inventory</div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">S</div>
+      <div><div class="user-name" id="sidebar-user-name">Seller</div><div class="user-role">SELLER</div></div>
+      <button class="btn-logout" onclick="logout()">⎋</button>
+    </div></div>
+  </aside>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>My Inventory</h3><p>Items available from your side</p></div>
+      <div class="topbar-right">
+        <div class="search-bar"><span>🔍</span><input id="search-input" placeholder="Search items..." oninput="filterProducts()"/></div>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Add Product</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header"><h4>Available Seller Items</h4><span id="product-count" style="font-size:.8rem;color:var(--text-muted)"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Name</th><th>Category</th><th>Brand</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="products-tbody"><tr><td colspan="8" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Add Product</h3>
+      <button class="modal-close" onclick="closeModal('product-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="p-id"/>
+      <div class="form-grid">
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Product Name *</label>
+          <input id="p-name" class="form-control" placeholder="e.g. LG 1.5 Ton AC"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Brand</label>
+          <input id="p-brand" class="form-control" placeholder="LG"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Model Number</label>
+          <input id="p-model" class="form-control" placeholder="LS-Q18"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="p-cat" class="form-control">
+            <option value="">Select category</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Price *</label>
+          <input id="p-price" class="form-control" type="number" min="0" step="0.01" placeholder="35000"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Stock Quantity *</label>
+          <input id="p-stock" class="form-control" type="number" min="0" placeholder="20"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Min Stock Threshold</label>
+          <input id="p-threshold" class="form-control" type="number" min="0" placeholder="5"/>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label class="form-label">Description</label>
+          <textarea id="p-desc" class="form-control" rows="3" placeholder="Product details..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('product-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('SELLER');
+initSidebar();
+
+let allProducts = [];
+let categories = [];
+
+async function loadProducts() {
+  const [productsRes, categoriesRes] = await Promise.all([
+    api.get('/seller/products'),
+    api.get('/categories')
+  ]);
+
+  allProducts = productsRes?.data || [];
+  categories = categoriesRes?.data || [];
+  fillCategories();
+  renderTable(allProducts);
+}
+
+function fillCategories() {
+  const sel = document.getElementById('p-cat');
+  sel.innerHTML = '<option value="">Select category</option>';
+  categories.forEach(c => {
+    sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+  });
+}
+
+function filterProducts() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  renderTable(allProducts.filter(p => !q || p.name.toLowerCase().includes(q) || (p.brand || '').toLowerCase().includes(q)));
+}
+
+function renderTable(list) {
+  document.getElementById('product-count').textContent = list.length + ' items';
+  const tbody = document.getElementById('products-tbody');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="no-data">No seller inventory found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = list.map(p => {
+    const isLow = p.stockQuantity <= p.minStockThreshold;
+    return `<tr>
+      <td style="color:var(--text-muted)">#${p.id}</td>
+      <td style="font-weight:600">${p.name}</td>
+      <td>${p.category?.name || '—'}</td>
+      <td>${p.brand || '—'}</td>
+      <td style="font-weight:700;color:var(--primary)">${fmt(p.price)}</td>
+      <td><span class="badge ${isLow ? 'badge-red' : 'badge-green'}">${p.stockQuantity} units</span></td>
+      <td>${isLow ? '<span class="badge badge-yellow">Low Stock</span>' : '<span class="badge badge-green">Available</span>'}</td>
+      <td>
+        <button class="btn btn-sm btn-secondary" onclick='editProduct(${JSON.stringify(p)})'>Edit</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})" style="margin-left:.35rem">Delete</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openAddModal() {
+  document.getElementById('modal-title').textContent = 'Add Product';
+  document.getElementById('p-id').value = '';
+  document.getElementById('p-name').value = '';
+  document.getElementById('p-brand').value = '';
+  document.getElementById('p-model').value = '';
+  document.getElementById('p-price').value = '';
+  document.getElementById('p-stock').value = '';
+  document.getElementById('p-threshold').value = '10';
+  document.getElementById('p-desc').value = '';
+  document.getElementById('p-cat').value = '';
+  openModal('product-modal');
+}
+
+function editProduct(product) {
+  document.getElementById('modal-title').textContent = 'Edit Product';
+  document.getElementById('p-id').value = product.id;
+  document.getElementById('p-name').value = product.name || '';
+  document.getElementById('p-brand').value = product.brand || '';
+  document.getElementById('p-model').value = product.modelNumber || '';
+  document.getElementById('p-price').value = product.price || '';
+  document.getElementById('p-stock').value = product.stockQuantity || 0;
+  document.getElementById('p-threshold').value = product.minStockThreshold || 10;
+  document.getElementById('p-desc').value = product.description || '';
+  document.getElementById('p-cat').value = product.category?.id || '';
+  openModal('product-modal');
+}
+
+async function saveProduct() {
+  const id = document.getElementById('p-id').value;
+  const body = {
+    name: document.getElementById('p-name').value.trim(),
+    brand: document.getElementById('p-brand').value.trim(),
+    modelNumber: document.getElementById('p-model').value.trim(),
+    price: parseFloat(document.getElementById('p-price').value),
+    stockQuantity: parseInt(document.getElementById('p-stock').value),
+    minStockThreshold: parseInt(document.getElementById('p-threshold').value) || 10,
+    description: document.getElementById('p-desc').value.trim(),
+    categoryId: document.getElementById('p-cat').value || null
+  };
+
+  if (!body.name) return toast('Product name is required', 'warning');
+  if (Number.isNaN(body.price)) return toast('Price is required', 'warning');
+  if (Number.isNaN(body.stockQuantity)) return toast('Stock quantity is required', 'warning');
+
+  const res = id
+    ? await api.put('/seller/products/' + id, body)
+    : await api.post('/seller/products', body);
+
+  if (res?.success) {
+    toast(id ? 'Product updated' : 'Product added', 'success');
+    closeModal('product-modal');
+    loadProducts();
+  } else toast(res?.message || 'Error', 'error');
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Delete this product?')) return;
+  const res = await api.delete('/seller/products/' + id);
+  if (res?.success) {
+    toast('Product deleted', 'success');
+    loadProducts();
+  } else toast(res?.message || 'Error', 'error');
+}
+
+loadProducts();
+</script>
+</body>
+</html>

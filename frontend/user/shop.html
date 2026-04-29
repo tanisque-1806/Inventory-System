@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Shop — ElectroInventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Online Store</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Shop</div>
+      <div class="nav-item active"><span class="nav-icon">🏠</span> Browse Products</div>
+      <div class="nav-item" onclick="location.href='cart.html'">
+        <span class="nav-icon">🛒</span> My Cart
+        <span class="nav-badge" id="cart-badge" style="display:none"></span>
+      </div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">📦</span> My Orders</div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div><div class="user-name" id="sidebar-user-name">User</div><div class="user-role">USER</div></div>
+      <button class="btn-logout" onclick="logout()">⎋</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Shop</h3><p>Browse electrical appliances</p></div>
+      <div class="topbar-right">
+        <div class="search-bar">
+          <span>🔍</span>
+          <input id="search-input" placeholder="Search products…" oninput="searchProducts()"/>
+        </div>
+        <button class="btn btn-secondary" onclick="location.href='cart.html'" style="position:relative">
+          🛒 Cart <span id="topbar-cart" style="background:var(--danger);color:#fff;border-radius:10px;padding:0 6px;font-size:.72rem;margin-left:.25rem"></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <!-- Category filter -->
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem" id="cat-pills">
+        <button class="btn btn-primary btn-sm" onclick="filterCat(null, this)">All</button>
+      </div>
+
+      <!-- Products -->
+      <div class="products-grid" id="products-grid">
+        <div class="loading-wrap" style="grid-column:1/-1"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Product Detail Modal -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-header"><h3 id="pm-name">Product</h3><button class="modal-close" onclick="closeModal('product-modal')">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:1.25rem;align-items:flex-start;margin-bottom:1rem">
+        <div style="width:80px;height:80px;background:var(--primary-light);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;flex-shrink:0" id="pm-icon">⚡</div>
+        <div>
+          <div id="pm-brand" style="font-size:.8rem;color:var(--text-muted);margin-bottom:.3rem"></div>
+          <div id="pm-price" style="font-size:1.4rem;font-weight:700;color:var(--primary);margin-bottom:.3rem"></div>
+          <div id="pm-stock" style="font-size:.8rem"></div>
+        </div>
+      </div>
+      <div id="pm-desc" style="font-size:.875rem;color:var(--text-muted);margin-bottom:1rem;line-height:1.6"></div>
+      <div style="display:flex;align-items:center;gap:.75rem">
+        <label class="form-label" style="margin:0">Qty:</label>
+        <div class="qty-control">
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <span class="qty-val" id="pm-qty">1</span>
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+        </div>
+        <span id="pm-total" style="font-weight:700;color:var(--primary)"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('product-modal')">Cancel</button>
+      <button class="btn btn-primary" id="add-cart-btn" onclick="addToCart()">🛒 Add to Cart</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('USER');
+initSidebar();
+
+let allProducts = [], categories = [], currentProductId = null, currentPrice = 0;
+let activeCategory = null;
+let searchTimeout;
+
+const catIcons = {
+  'Air Conditioner':'❄️','Refrigerator':'🧊','Washing Machine':'🫧','Television':'📺',
+  'Microwave Oven':'📡','Ceiling Fan':'🌀','Water Heater':'🔥','Vacuum Cleaner':'🌪️',
+  'Dishwasher':'🍽️','Air Purifier':'💨'
+};
+function getIcon(cat) { return catIcons[cat] || '⚡'; }
+
+async function init() {
+  const [pr, cr, cc] = await Promise.all([
+    api.get('/products'), api.get('/categories'), api.get('/cart/count')
+  ]);
+  allProducts = pr?.data || [];
+  categories  = cr?.data || [];
+
+  const pills = document.getElementById('cat-pills');
+  categories.forEach(c => {
+    pills.innerHTML += `<button class="btn btn-secondary btn-sm" onclick="filterCat(${c.id}, this)">${getIcon(c.name)} ${c.name}</button>`;
+  });
+
+  updateCartBadge(cc?.data || 0);
+  renderProducts(allProducts);
+}
+
+function filterCat(catId, btn) {
+  activeCategory = catId;
+  document.querySelectorAll('#cat-pills .btn').forEach(b => { b.className = 'btn btn-secondary btn-sm'; });
+  btn.className = 'btn btn-primary btn-sm';
+  const list = catId ? allProducts.filter(p => p.category?.id === catId) : allProducts;
+  renderProducts(list);
+}
+
+function searchProducts() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    const q = document.getElementById('search-input').value.toLowerCase().trim();
+    const list = allProducts.filter(p =>
+      !q || p.name.toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q)
+    );
+    renderProducts(list);
+  }, 300);
+}
+
+function renderProducts(list) {
+  const grid = document.getElementById('products-grid');
+
+  if (!list.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1" class="no-data">No products found</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(p => {
+    const isLow = p.stockQuantity <= p.minStockThreshold;
+    const outOfStock = p.stockQuantity === 0;
+
+    let stockText = '';
+    if (outOfStock) {
+      stockText = '❌ Out of stock';
+    } else if (isLow) {
+      stockText = `⚠️ Only ${p.stockQuantity} left`;
+    } else {
+      stockText = `✅ In stock (${p.stockQuantity})`;
+    }
+
+    return `
+      <div class="product-card">
+        <div class="product-img">${getIcon(p.category?.name)}</div>
+
+        <div class="product-info">
+          <div class="product-name">${p.name}</div>
+          <div class="product-brand">${p.brand || p.category?.name || 'Electrical'}</div>
+          <div class="product-price">${fmt(p.price)}</div>
+
+          <div class="product-stock ${isLow ? 'low' : ''}">
+            ${stockText}
+          </div>
+
+          <div class="product-actions">
+            <button class="btn btn-secondary btn-sm" onclick="openProduct(${p.id})">
+              View
+            </button>
+
+            ${!outOfStock ? `
+              <button class="btn btn-primary btn-sm" style="flex:1" onclick="quickAdd(${p.id})">
+                🛒 Add
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+function openProduct(p) {
+  currentProductId = p.id;
+  currentPrice = parseFloat(p.price);
+  document.getElementById('pm-name').textContent = p.name;
+  document.getElementById('pm-brand').textContent = `${p.brand||''} ${p.category?.name ? '· '+p.category.name : ''}`;
+  document.getElementById('pm-price').textContent = fmt(p.price);
+  document.getElementById('pm-icon').textContent = getIcon(p.category?.name);
+  document.getElementById('pm-stock').innerHTML = p.stockQuantity === 0
+    ? '<span style="color:var(--danger)">Out of stock</span>'
+    : `<span style="color:var(--success)">${p.stockQuantity} in stock</span>`;
+  document.getElementById('pm-desc').textContent = p.description || 'No description available.';
+  document.getElementById('pm-qty').textContent = '1';
+  updatePmTotal();
+  document.getElementById('add-cart-btn').disabled = p.stockQuantity === 0;
+  openModal('product-modal');
+}
+
+function changeQty(delta) {
+  const el = document.getElementById('pm-qty');
+  const q = Math.max(1, parseInt(el.textContent) + delta);
+  el.textContent = q;
+  updatePmTotal();
+}
+function updatePmTotal() {
+  const q = parseInt(document.getElementById('pm-qty').textContent);
+  document.getElementById('pm-total').textContent = fmt(q * currentPrice);
+}
+
+async function addToCart() {
+  const qty = parseInt(document.getElementById('pm-qty').textContent);
+  const res = await api.post('/cart', { productId: currentProductId, quantity: qty });
+  if (res?.success) {
+    toast('Added to cart!','success');
+    closeModal('product-modal');
+    refreshCartCount();
+  } else toast(res?.message||'Error','error');
+}
+
+async function quickAdd(productId) {
+  const res = await api.post('/cart', { productId, quantity: 1 });
+  if (res?.success) { toast('Added to cart!','success'); refreshCartCount(); }
+  else toast(res?.message||'Error','error');
+}
+
+async function refreshCartCount() {
+  const res = await api.get('/cart/count');
+  updateCartBadge(res?.data || 0);
+}
+
+function updateCartBadge(count) {
+  const b = document.getElementById('cart-badge');
+  const t = document.getElementById('topbar-cart');
+  if (count > 0) { b.textContent = count; b.style.display = 'inline'; if(t) t.textContent = count; }
+  else { b.style.display = 'none'; if(t) t.textContent = ''; }
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Categories — ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item active"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item" onclick="location.href='sellers.html'"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" onclick="location.href='users.html'"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" onclick="location.href='supply-requests.html'"><span class="nav-icon">📥</span> Supply Requests</div>
+      <div class="nav-item" onclick="location.href='notifications.html'"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-badge"></span></div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Categories</h3><p>Manage product categories</p></div>
+      <div class="topbar-right"><button class="btn btn-primary" onclick="openModal('cat-modal')">＋ Add Category</button></div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header"><h4>All Categories</h4><span id="cat-count" style="font-size:.8rem;color:var(--text-muted)"></span></div>
+        <div class="card-body">
+          <div id="cat-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem">
+            <div class="loading-wrap"><div class="spinner"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="cat-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3>Add Category</h3><button class="modal-close" onclick="closeModal('cat-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">Category Name *</label><input id="c-name" class="form-control" placeholder="e.g. Air Conditioner"/></div>
+      <div class="form-group"><label class="form-label">Description</label><input id="c-desc" class="form-control" placeholder="Short description…"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('cat-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addCategory()">Add</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+
+const icons = ['❄️','🧊','🫧','📺','📡','🌀','🔥','🌪️','🍽️','💨','⚡','🔌','💡','🖥️'];
+
+async function loadCategories() {
+  const res = await api.get('/admin/categories');
+  const cats = res?.data || [];
+  document.getElementById('cat-count').textContent = cats.length + ' categories';
+  const grid = document.getElementById('cat-grid');
+  if (!cats.length) { grid.innerHTML = '<p class="no-data">No categories yet</p>'; return; }
+  grid.innerHTML = cats.map((c,i) => `
+    <div class="card" style="box-shadow:none;border:1px solid var(--border)">
+      <div style="padding:1.25rem;display:flex;align-items:center;gap:.75rem">
+        <div style="width:48px;height:48px;background:var(--primary-light);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0">${icons[i%icons.length]}</div>
+        <div>
+          <div style="font-weight:700">${c.name}</div>
+          <div style="font-size:.78rem;color:var(--text-muted)">${c.description||'No description'}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function addCategory() {
+  const name = document.getElementById('c-name').value.trim();
+  const description = document.getElementById('c-desc').value.trim();
+  if (!name) return toast('Enter category name','warning');
+  const res = await api.post('/admin/categories', { name, description });
+  if (res?.success) { toast('Category added!','success'); closeModal('cat-modal'); loadCategories(); }
+  else toast(res?.message||'Error','error');
+}
+
+loadCategories();
+</script>
+</body>
+</html>

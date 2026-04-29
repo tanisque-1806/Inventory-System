@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>My Cart — ElectroInventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Online Store</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Shop</div>
+      <div class="nav-item" onclick="location.href='shop.html'"><span class="nav-icon">🏠</span> Browse Products</div>
+      <div class="nav-item active"><span class="nav-icon">🛒</span> My Cart</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">📦</span> My Orders</div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">U</div>
+      <div><div class="user-name" id="sidebar-user-name">User</div><div class="user-role">USER</div></div>
+      <button class="btn-logout" onclick="logout()">⎋</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>My Cart</h3><p id="cart-subtitle">Loading…</p></div>
+      <div class="topbar-right">
+        <button class="btn btn-secondary" onclick="location.href='shop.html'">← Continue Shopping</button>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="grid-2" style="align-items:start">
+        <!-- Cart items -->
+        <div class="card" id="cart-card" style="grid-column:1">
+          <div class="card-header"><h4>🛒 Cart Items</h4>
+            <button class="btn btn-sm btn-danger" onclick="clearCart()">🗑 Clear All</button>
+          </div>
+          <div id="cart-items"><div class="loading-wrap"><div class="spinner"></div></div></div>
+        </div>
+
+        <!-- Order summary -->
+        <div class="card" style="position:sticky;top:80px">
+          <div class="card-header"><h4>💳 Order Summary</h4></div>
+          <div class="card-body">
+            <div id="summary-rows"></div>
+            <div style="border-top:2px solid var(--border);padding-top:1rem;margin-top:1rem">
+              <div style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:700">
+                <span>Total</span><span id="summary-total" style="color:var(--primary)">₹0</span>
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:1.25rem">
+              <label class="form-label">Shipping Address *</label>
+              <textarea id="shipping-addr" class="form-control" rows="3" placeholder="Enter your full shipping address…"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Order Notes (optional)</label>
+              <input id="order-notes" class="form-control" placeholder="Special instructions…"/>
+            </div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;padding:.75rem;font-size:1rem"
+              onclick="placeOrder()" id="place-order-btn">
+              ✅ Place Order
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('USER');
+initSidebar();
+
+const catIcons = {
+  'Air Conditioner':'❄️','Refrigerator':'🧊','Washing Machine':'🫧','Television':'📺',
+  'Microwave Oven':'📡','Ceiling Fan':'🌀','Water Heater':'🔥','Vacuum Cleaner':'🌪️',
+  'Dishwasher':'🍽️','Air Purifier':'💨'
+};
+function getIcon(cat) { return catIcons[cat] || '⚡'; }
+
+let cartItems = [];
+
+async function loadCart() {
+  const res = await api.get('/cart');
+  cartItems = res?.data || [];
+  document.getElementById('cart-subtitle').textContent = cartItems.length + ' item(s)';
+  renderCart();
+  updateSummary();
+}
+
+function renderCart() {
+  const el = document.getElementById('cart-items');
+  if (!cartItems.length) {
+    el.innerHTML = `<div class="no-data" style="padding:2.5rem">
+      <div style="font-size:3rem;margin-bottom:.75rem">🛒</div>
+      <div style="font-weight:600;margin-bottom:.5rem">Your cart is empty</div>
+      <a href="shop.html" class="btn btn-primary btn-sm">Start Shopping</a>
+    </div>`;
+    document.getElementById('place-order-btn').disabled = true;
+    return;
+  }
+  document.getElementById('place-order-btn').disabled = false;
+  el.innerHTML = cartItems.map(ci => `
+    <div class="cart-item">
+      <div class="cart-item-icon">${getIcon(ci.product?.category?.name)}</div>
+      <div class="cart-item-info">
+        <div class="cart-item-name">${ci.product?.name||'—'}</div>
+        <div class="cart-item-price">${fmt(ci.product?.price)} each</div>
+        <div style="font-size:.75rem;color:var(--text-muted)">${ci.product?.brand||''}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.5rem">
+        <div class="qty-control">
+          <button class="qty-btn" onclick="updateQty(${ci.id}, ${ci.quantity - 1})">−</button>
+          <span class="qty-val">${ci.quantity}</span>
+          <button class="qty-btn" onclick="updateQty(${ci.id}, ${ci.quantity + 1})">+</button>
+        </div>
+        <div style="font-weight:700;color:var(--primary)">${fmt((ci.product?.price||0)*ci.quantity)}</div>
+        <button class="btn btn-sm btn-danger btn-icon" onclick="removeItem(${ci.id})" title="Remove">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function updateSummary() {
+  const subtotal = cartItems.reduce((s,ci)=>s+(parseFloat(ci.product?.price)||0)*ci.quantity,0);
+  const rows = document.getElementById('summary-rows');
+  rows.innerHTML = cartItems.map(ci=>`
+    <div style="display:flex;justify-content:space-between;font-size:.85rem;padding:.3rem 0;color:var(--text-muted)">
+      <span>${ci.product?.name?.slice(0,28)||'—'} ×${ci.quantity}</span>
+      <span>${fmt((ci.product?.price||0)*ci.quantity)}</span>
+    </div>`).join('');
+  document.getElementById('summary-total').textContent = fmt(subtotal);
+}
+
+async function updateQty(id, qty) {
+  if (qty < 1) return removeItem(id);
+  const res = await api.put('/cart/'+id, { productId: 0, quantity: qty });
+  if (res?.success) loadCart();
+  else toast(res?.message||'Error','error');
+}
+
+async function removeItem(id) {
+  const res = await api.delete('/cart/'+id);
+  if (res?.success) { toast('Removed','success'); loadCart(); }
+}
+
+async function clearCart() {
+  if (!confirm('Clear entire cart?')) return;
+  const res = await api.delete('/cart');
+  if (res?.success) { toast('Cart cleared','success'); loadCart(); }
+}
+
+async function placeOrder() {
+  const addr = document.getElementById('shipping-addr').value.trim();
+  if (!addr) return toast('Enter shipping address','warning');
+  if (!cartItems.length) return toast('Cart is empty','warning');
+  const notes = document.getElementById('order-notes').value;
+  const res = await api.post('/orders', { shippingAddress: addr, notes });
+  if (res?.success) {
+    toast('🎉 Order placed successfully!','success');
+    setTimeout(() => location.href = 'orders.html', 1200);
+  } else toast(res?.message||'Error placing order','error');
+}
+
+loadCart();
+</script>
+</body>
+</html>

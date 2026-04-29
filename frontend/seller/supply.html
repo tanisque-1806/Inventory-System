@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Admin Supply Requests - ElectroInventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Seller Portal</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item active"><span class="nav-icon">📥</span> Admin Requests</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> View Products</div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">S</div>
+      <div><div class="user-name" id="sidebar-user-name">Seller</div><div class="user-role">SELLER</div></div>
+      <button class="btn-logout" onclick="logout()">⎋</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Admin Supply Requests</h3><p>Accept or reject supply requests sent by admin</p></div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header"><h4>Incoming Requests</h4><span id="req-count" style="font-size:.8rem;color:var(--text-muted)"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Product</th><th>Qty</th><th>Price/Unit</th><th>Total</th><th>Admin Note</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+            <tbody id="req-tbody"><tr><td colspan="9" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="response-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3 id="response-title">Respond</h3><button class="modal-close" onclick="closeModal('response-modal')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="response-id"/><input type="hidden" id="response-status"/>
+      <div class="form-group">
+        <label class="form-label">Seller Remarks (optional)</label>
+        <textarea id="response-remarks" class="form-control" rows="3" placeholder="Add a note for admin..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('response-modal')">Cancel</button>
+      <button class="btn btn-primary" id="confirm-response-btn" onclick="confirmResponse()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('SELLER');
+initSidebar();
+
+let allRequests = [];
+
+async function loadRequests() {
+  const res = await api.get('/seller/supply-requests');
+  allRequests = res?.data || [];
+  document.getElementById('req-count').textContent = allRequests.length + ' request(s)';
+
+  const tbody = document.getElementById('req-tbody');
+  if (!allRequests.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="no-data">No admin requests yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = allRequests.map(r => `<tr>
+    <td style="color:var(--text-muted)">#${r.id}</td>
+    <td style="font-weight:600">${r.productName||r.product?.name||'—'}</td>
+    <td>${r.quantity}</td>
+    <td>${fmt(r.pricePerUnit)}</td>
+    <td style="font-weight:700;color:var(--primary)">${fmt((r.pricePerUnit||0)*(r.quantity||0))}</td>
+    <td style="font-size:.82rem;color:var(--text-muted)">${r.notes||'—'}</td>
+    <td>${statusBadge(r.status)}</td>
+    <td style="font-size:.8rem;color:var(--text-muted)">${date(r.createdAt)}</td>
+    <td>${r.status==='PENDING' ? `
+      <button class="btn btn-sm btn-success" onclick="openResponse(${r.id}, 'APPROVED', 'Accept Request')">Accept</button>
+      <button class="btn btn-sm btn-danger" onclick="openResponse(${r.id}, 'REJECTED', 'Reject Request')" style="margin-left:.35rem">Reject</button>
+    ` : `<span style="font-size:.82rem;color:var(--text-muted)">${r.adminRemarks||'—'}</span>`}</td>
+  </tr>`).join('');
+}
+
+function openResponse(id, status, title) {
+  document.getElementById('response-id').value = id;
+  document.getElementById('response-status').value = status;
+  document.getElementById('response-title').textContent = title;
+  document.getElementById('response-remarks').value = '';
+  const btn = document.getElementById('confirm-response-btn');
+  btn.className = 'btn ' + (status === 'APPROVED' ? 'btn-success' : 'btn-danger');
+  btn.textContent = status === 'APPROVED' ? 'Accept' : 'Reject';
+  openModal('response-modal');
+}
+
+async function confirmResponse() {
+  const id = document.getElementById('response-id').value;
+  const status = document.getElementById('response-status').value;
+  const remarks = document.getElementById('response-remarks').value;
+  const res = await api.put('/seller/supply-requests/' + id, { status, remarks });
+  if (res?.success) {
+    toast(status === 'APPROVED' ? 'Request accepted. Stock updated.' : 'Request rejected.', status === 'APPROVED' ? 'success' : 'warning');
+    closeModal('response-modal');
+    loadRequests();
+  } else toast(res?.message || 'Error', 'error');
+}
+
+loadRequests();
+</script>
+</body>
+</html>

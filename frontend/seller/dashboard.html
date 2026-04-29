@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Seller Dashboard - ElectroInventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Seller Portal</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item active"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='supply.html'"><span class="nav-icon">📥</span> Admin Requests</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> View Products</div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">S</div>
+      <div><div class="user-name" id="sidebar-user-name">Seller</div><div class="user-role" id="sidebar-role">SELLER</div></div>
+      <button class="btn-logout" onclick="logout()">⎋</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Seller Dashboard</h3><p>Admin requests that need your response</p></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="location.href='supply.html'">View Admin Requests</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="stats-grid" id="seller-stats">
+        <div class="loading-wrap"><div class="spinner"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h4>📥 Requests From Admin</h4>
+          <a href="supply.html" class="btn btn-sm btn-primary">Open Requests</a>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Product</th><th>Qty</th><th>Price/Unit</th><th>Total Value</th><th>Status</th><th>Admin Note</th><th>Seller Response</th><th>Date</th></tr></thead>
+            <tbody id="supply-tbody"><tr><td colspan="9" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('SELLER');
+initSidebar();
+
+async function loadDashboard() {
+  const res = await api.get('/seller/supply-requests');
+  const requests = res?.data || [];
+
+  const total = requests.length;
+  const pending = requests.filter(r => r.status === 'PENDING').length;
+  const approved = requests.filter(r => r.status === 'APPROVED').length;
+  const rejected = requests.filter(r => r.status === 'REJECTED').length;
+  const totalValue = requests.filter(r => r.status === 'APPROVED')
+    .reduce((s, r) => s + (r.pricePerUnit || 0) * (r.quantity || 0), 0);
+
+  document.getElementById('seller-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-icon blue">📋</div><div><div class="stat-value">${total}</div><div class="stat-label">Total Admin Requests</div></div></div>
+    <div class="stat-card"><div class="stat-icon amber">⏳</div><div><div class="stat-value">${pending}</div><div class="stat-label">Pending</div></div></div>
+    <div class="stat-card"><div class="stat-icon green">✅</div><div><div class="stat-value">${approved}</div><div class="stat-label">Accepted</div></div></div>
+    <div class="stat-card"><div class="stat-icon red">❌</div><div><div class="stat-value">${rejected}</div><div class="stat-label">Rejected</div></div></div>
+    <div class="stat-card"><div class="stat-icon purple">💰</div><div><div class="stat-value">${fmt(totalValue)}</div><div class="stat-label">Accepted Value</div></div></div>
+  `;
+
+  const tbody = document.getElementById('supply-tbody');
+  if (!requests.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="no-data">No admin requests yet.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = requests.map(r => `<tr>
+    <td style="color:var(--text-muted)">#${r.id}</td>
+    <td style="font-weight:600">${r.productName||r.product?.name||'—'}</td>
+    <td>${r.quantity}</td>
+    <td>${fmt(r.pricePerUnit)}</td>
+    <td style="font-weight:700;color:var(--primary)">${fmt((r.pricePerUnit||0)*(r.quantity||0))}</td>
+    <td>${statusBadge(r.status)}</td>
+    <td style="font-size:.82rem;color:var(--text-muted)">${r.notes||'—'}</td>
+    <td style="font-size:.82rem;color:var(--text-muted)">${r.adminRemarks||'—'}</td>
+    <td style="font-size:.8rem;color:var(--text-muted)">${date(r.createdAt)}</td>
+  </tr>`).join('');
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

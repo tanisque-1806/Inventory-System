@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Sellers — ElectroInventory Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="../css/style.css"/>
+</head>
+<body>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header"><div class="logo-icon">⚡</div><div><h2>ElectroInventory</h2><small>Admin Panel</small></div></div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Main</div>
+      <div class="nav-item" onclick="location.href='dashboard.html'"><span class="nav-icon">🏠</span> Dashboard</div>
+      <div class="nav-item" onclick="location.href='analytics.html'"><span class="nav-icon">📊</span> Analytics</div>
+      <div class="nav-section">Inventory</div>
+      <div class="nav-item" onclick="location.href='products.html'"><span class="nav-icon">📦</span> Products</div>
+      <div class="nav-item" onclick="location.href='categories.html'"><span class="nav-icon">🏷️</span> Categories</div>
+      <div class="nav-section">People</div>
+      <div class="nav-item active"><span class="nav-icon">🏪</span> Sellers</div>
+      <div class="nav-item" onclick="location.href='users.html'"><span class="nav-icon">👥</span> Users</div>
+      <div class="nav-section">Operations</div>
+      <div class="nav-item" onclick="location.href='orders.html'"><span class="nav-icon">🛒</span> Orders</div>
+      <div class="nav-item" onclick="location.href='supply-requests.html'"><span class="nav-icon">📥</span> Supply Requests</div>
+      <div class="nav-item" onclick="location.href='notifications.html'"><span class="nav-icon">🔔</span> Notifications<span class="nav-badge" id="notif-badge"></span></div>
+    </nav>
+    <div class="sidebar-footer"><div class="user-info">
+      <div class="user-avatar" id="sidebar-avatar">A</div>
+      <div><div class="user-name" id="sidebar-user-name">Admin</div><div class="user-role">ADMIN</div></div>
+      <button class="btn-logout" onclick="logout()" title="Logout">Logout</button>
+    </div></div>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left"><h3>Sellers</h3><p>Manage supplier accounts</p></div>
+      <div class="topbar-right">
+        <button class="btn btn-primary" onclick="openModal('seller-modal')">＋ Add Seller</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="card-header"><h4>All Sellers</h4><span id="seller-count" style="font-size:.8rem;color:var(--text-muted)"></span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>Company</th><th>Contact Person</th><th>Email</th><th>Phone</th><th>GST</th><th>Status</th><th>Joined</th><th>Action</th></tr></thead>
+            <tbody id="sellers-tbody"><tr><td colspan="9" class="no-data"><div class="spinner" style="margin:auto"></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Seller Modal -->
+<div class="modal-overlay" id="seller-modal">
+  <div class="modal">
+    <div class="modal-header"><h3>Add New Seller</h3><button class="modal-close" onclick="closeModal('seller-modal')">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:1rem">This will create a seller account. They can login and submit supply requests.</p>
+      <div class="form-grid">
+        <div class="form-group"><label class="form-label">Contact Person Name *</label><input id="s-name" class="form-control" placeholder="Raj Kumar"/></div>
+        <div class="form-group"><label class="form-label">Email *</label><input id="s-email" class="form-control" type="email" placeholder="raj@company.com"/></div>
+        <div class="form-group"><label class="form-label">Password *</label><input id="s-pass" class="form-control" type="password" placeholder="Min 6 chars"/></div>
+        <div class="form-group"><label class="form-label">Phone</label><input id="s-phone" class="form-control" placeholder="+91 9999999999"/></div>
+        <div class="form-group" style="grid-column:1/-1"><label class="form-label">Company Name</label><input id="s-company" class="form-control" placeholder="Raj Electronics Pvt Ltd"/></div>
+        <div class="form-group" style="grid-column:1/-1"><label class="form-label">Address</label><textarea id="s-address" class="form-control" rows="2" placeholder="Full address…"></textarea></div>
+        <div class="form-group"><label class="form-label">GST Number</label><input id="s-gst" class="form-control" placeholder="22AAAAA0000A1Z5"/></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('seller-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addSeller()">Create Seller</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script src="../js/api.js"></script>
+<script>
+requireRole('ADMIN');
+initSidebar();
+loadNotifBadge();
+
+async function loadSellers() {
+  const res = await api.get('/admin/sellers');
+  const sellers = res?.data || [];
+  document.getElementById('seller-count').textContent = sellers.length + ' sellers';
+  const tbody = document.getElementById('sellers-tbody');
+  if (!sellers.length) { tbody.innerHTML = '<tr><td colspan="9" class="no-data">No sellers yet</td></tr>'; return; }
+  tbody.innerHTML = sellers.map(s => `<tr>
+    <td style="color:var(--text-muted)">#${s.id}</td>
+    <td><div style="font-weight:600">${s.companyName||'—'}</div></td>
+    <td>${s.user?.name||'—'}</td>
+    <td>${s.user?.email||'—'}</td>
+    <td>${s.phone||s.user?.phone||'—'}</td>
+    <td><span style="font-size:.75rem;font-family:monospace">${s.gstNumber||'—'}</span></td>
+    <td>${s.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-gray">Inactive</span>'}</td>
+    <td style="color:var(--text-muted);font-size:.8rem">${date(s.createdAt)}</td>
+    <td><button class="btn btn-sm btn-danger" onclick="deleteSeller(${s.id})">Deactivate</button></td>
+  </tr>`).join('');
+}
+
+async function addSeller() {
+  const body = {
+    name: document.getElementById('s-name').value,
+    email: document.getElementById('s-email').value,
+    password: document.getElementById('s-pass').value,
+    phone: document.getElementById('s-phone').value,
+    companyName: document.getElementById('s-company').value,
+    address: document.getElementById('s-address').value,
+    gstNumber: document.getElementById('s-gst').value
+  };
+  if (!body.name || !body.email || !body.password) return toast('Fill required fields','warning');
+  const res = await api.post('/admin/sellers', body);
+  if (res?.success) { toast('Seller created!','success'); closeModal('seller-modal'); loadSellers(); }
+  else toast(res?.message||'Error','error');
+}
+
+async function deleteSeller(id) {
+  if (!confirm('Deactivate this seller?')) return;
+  const res = await api.delete('/admin/sellers/'+id);
+  if (res?.success) { toast('Deactivated','success'); loadSellers(); }
+  else toast('Error','error');
+}
+
+loadSellers();
+</script>
+</body>
+</html>
